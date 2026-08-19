@@ -1,44 +1,52 @@
-const slides = [...document.querySelectorAll('.slide')];
-const currentEl = document.getElementById('current');
-const progressBar = document.getElementById('progressBar');
-const dotsEl = document.getElementById('dots');
-let index = 0;
-let touchStartX = null;
+const slides=[...document.querySelectorAll('.slide')];
+const prev=document.getElementById('prevBtn');
+const next=document.getElementById('nextBtn');
+const current=document.getElementById('currentPage');
+const total=document.getElementById('totalPage');
+const progress=document.getElementById('progressBar');
+const toc=document.getElementById('toc');
+const tocBtn=document.getElementById('tocBtn');
+const tocClose=document.getElementById('tocClose');
+const tocList=document.getElementById('tocList');
+const backdrop=document.getElementById('backdrop');
 
-slides.forEach((_, i) => {
-  const d = document.createElement('span');
-  d.className = 'dot' + (i === 0 ? ' active' : '');
-  d.addEventListener('click', () => show(i));
-  dotsEl.appendChild(d);
+let index=0;
+total.textContent=slides.length;
+
+slides.forEach((slide,i)=>{
+  const li=document.createElement('li');
+  const btn=document.createElement('button');
+  btn.innerHTML=`<span class="num">${String(i+1).padStart(2,'0')}</span><span>${slide.dataset.title}</span>`;
+  btn.addEventListener('click',()=>{go(i);closeToc();});
+  li.appendChild(btn); tocList.appendChild(li);
 });
 
-function show(nextIndex) {
-  index = (nextIndex + slides.length) % slides.length;
-  slides.forEach((s, i) => s.classList.toggle('active', i === index));
-  [...dotsEl.children].forEach((d, i) => d.classList.toggle('active', i === index));
-  currentEl.textContent = String(index + 1).padStart(2, '0');
-  progressBar.style.width = `${((index + 1) / slides.length) * 100}%`;
-  document.title = `${String(index + 1).padStart(2,'0')} · ${slides[index].dataset.title} | NAVER SA`;
-  history.replaceState(null, '', `#${index + 1}`);
+function go(i){
+  index=(i+slides.length)%slides.length;
+  slides.forEach((s,n)=>s.classList.toggle('active',n===index));
+  [...tocList.querySelectorAll('button')].forEach((b,n)=>b.classList.toggle('active',n===index));
+  current.textContent=index+1;
+  progress.style.width=`${((index+1)/slides.length)*100}%`;
+  location.hash=`page-${index+1}`;
 }
-document.getElementById('prev').addEventListener('click', () => show(index - 1));
-document.getElementById('next').addEventListener('click', () => show(index + 1));
+function fromHash(){
+  const m=location.hash.match(/page-(\d+)/);
+  if(m){ const n=Math.min(slides.length,Math.max(1,Number(m[1]))); index=n-1; }
+  go(index);
+}
+function openToc(){toc.classList.add('open');backdrop.classList.add('show');toc.setAttribute('aria-hidden','false')}
+function closeToc(){toc.classList.remove('open');backdrop.classList.remove('show');toc.setAttribute('aria-hidden','true')}
 
-document.addEventListener('keydown', e => {
-  if (['ArrowRight','PageDown',' '].includes(e.key)) { e.preventDefault(); show(index + 1); }
-  if (['ArrowLeft','PageUp'].includes(e.key)) { e.preventDefault(); show(index - 1); }
-  if (e.key === 'Home') show(0);
-  if (e.key === 'End') show(slides.length - 1);
+prev.addEventListener('click',()=>go(index-1));
+next.addEventListener('click',()=>go(index+1));
+tocBtn.addEventListener('click',openToc);
+tocClose.addEventListener('click',closeToc);
+backdrop.addEventListener('click',closeToc);
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key==='PageDown') go(index+1);
+  if(e.key==='ArrowLeft'||e.key==='PageUp') go(index-1);
+  if(e.key==='Escape') closeToc();
 });
-
-document.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].clientX, {passive:true});
-document.addEventListener('touchend', e => {
-  if (touchStartX === null) return;
-  const dx = e.changedTouches[0].clientX - touchStartX;
-  if (Math.abs(dx) > 50) show(index + (dx < 0 ? 1 : -1));
-  touchStartX = null;
-}, {passive:true});
-
-const hash = parseInt(location.hash.replace('#',''), 10);
-if (hash >= 1 && hash <= slides.length) show(hash - 1);
-else show(0);
+window.addEventListener('hashchange',fromHash);
+fromHash();
